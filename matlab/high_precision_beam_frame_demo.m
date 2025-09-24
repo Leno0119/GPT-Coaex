@@ -181,7 +181,8 @@ for iter = 1:opts.max_iter
     [r, R] = weightedRigidTransform(s_def, r_pi, weights);
 
     % 计算残差与Huber权重
-    residuals = r + (R * s_def')' - r_pi;
+    predicted = applyRigidTransform(R, r, s_def);
+    residuals = predicted - r_pi;
     weights = computeHuberWeights(residuals, opts.huber_delta, opts.min_weight);
 
     cost = sum(weights .* sum(residuals.^2, 2));
@@ -206,7 +207,7 @@ info.iterations = iter;
 s_def = s_i + u;
 [r_refined, R_refined] = refineRigidMotion(r, R, s_def, r_pi, opts);
 
-residuals = r_refined + (R_refined * s_def')' - r_pi;
+residuals = applyRigidTransform(R_refined, r_refined, s_def) - r_pi;
 info.rmse = sqrt(mean(sum(residuals.^2, 2)));
 info.cost(end + 1, 1) = sum(vecnorm(residuals, 2, 2).^2);
 
@@ -400,9 +401,15 @@ end
 
 function rmse = computeRMSE(source, target, r, R)
 %COMPUTERMSE  均方根误差
-pred = r' + (R * source')';
+pred = applyRigidTransform(R, r, source);
 res = pred - target;
 rmse = sqrt(mean(sum(res.^2, 2)));
+end
+
+function transformed = applyRigidTransform(R, r, points)
+%APPLYRIGIDTRANSFORM  对点集施加刚体变换
+transformed = (R * points')';
+transformed = transformed + repmat(r', size(points, 1), 1);
 end
 
 function elastic = generateBeamDeformation(s, L)
